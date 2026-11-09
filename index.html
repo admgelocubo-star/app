@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b3d91">
+<title>Gelo Cubo</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b1220;overflow:hidden}
+  iframe{position:fixed;inset:0;width:100%;height:100%;border:0;background:#fff}
+  #ld{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+      color:#cbd5e1;font:15px system-ui,sans-serif;flex-direction:column;gap:12px}
+  #ld i{width:34px;height:34px;border:3px solid #334155;border-top-color:#38bdf8;border-radius:50%;
+        animation:r 1s linear infinite}
+  @keyframes r{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="ld"><i></i>Abrindo…</div>
+<script>
+(function(){
+  var APPS = {
+    man: 'AKfycbw0wE7-2kJj0MPan-fmkMa93OBEdH8cXLExdbutFF3sWY-BMosYon90MnbSTW4A-r4j',
+    car: 'AKfycbwqnPyzN89UWByLMCtKFnkO-BYS7MjW9KtIXJgy3ndtWe7TwLVyOD2629FrWbF7xgMU',
+    dem: 'AKfycby2E0NZ-u7VBmoRzCOKntVxwaS2tLViz3xce0yb-3All2_9S0B9Dx9lbfaX1-GLRKEcAQ'
+  };
+  var q = new URLSearchParams(location.search);
+  var a = q.get('a') || 'man';
+  if (a === 'mot') { a = 'car'; q.set('m', '1'); }
+  var id = APPS[a] || APPS.man;
+  q.delete('a');
+  var qs = q.toString();
+  var src = 'https://script.google.com/macros/s/' + id + '/exec' + (qs ? '?' + qs : '');
+  var f = document.createElement('iframe');
+  f.setAttribute('credentialless', '');
+  f.credentialless = true;
+  f.setAttribute('allow', 'camera; microphone; geolocation; clipboard-read; clipboard-write; fullscreen');
+  f.setAttribute('referrerpolicy', 'no-referrer');
+  f.onload = function(){ var l = document.getElementById('ld'); if (l) l.remove(); };
+  f.src = src;
+  document.body.appendChild(f);
+})();
+</script>
+</body>
+</html>
