@@ -7,16 +7,43 @@
 <title>Gelo Cubo</title>
 <style>
   html,body{margin:0;height:100%;background:#0b1220;overflow:hidden}
-  iframe{position:fixed;inset:0;width:100%;height:100%;border:0;background:#fff}
+  iframe.app{position:fixed;inset:0;width:100%;height:100%;border:0;background:#fff}
+  iframe.app.off{visibility:hidden;pointer-events:none}
   #ld{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-      color:#cbd5e1;font:15px system-ui,sans-serif;flex-direction:column;gap:12px}
-  #ld i{width:34px;height:34px;border:3px solid #334155;border-top-color:#38bdf8;border-radius:50%;
-        animation:r 1s linear infinite}
+      color:#cbd5e1;font:15px system-ui,sans-serif;flex-direction:column;gap:12px;z-index:5}
+  #ld i,#gcLoad i{width:34px;height:34px;border:3px solid #334155;border-top-color:#38bdf8;border-radius:50%;
+        animation:r 1s linear infinite;display:inline-block}
   @keyframes r{to{transform:rotate(360deg)}}
+  /* menu lateral escondido (aparece só com os apps que o usuário tem permissão) */
+  #gcBtn{position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:20;width:22px;height:64px;border:0;
+    border-radius:0 12px 12px 0;background:rgba(11,61,145,.85);color:#fff;font:700 15px system-ui,sans-serif;cursor:pointer;
+    box-shadow:2px 2px 10px rgba(0,0,0,.25);padding:0;opacity:.75;transition:opacity .2s,width .2s}
+  #gcBtn:hover{opacity:1;width:28px}
+  #gcNav{position:fixed;left:0;top:0;bottom:0;width:250px;max-width:85vw;z-index:30;background:#0f1d33;color:#e2e8f0;
+    font:15px system-ui,sans-serif;box-shadow:4px 0 24px rgba(0,0,0,.4);transform:translateX(-105%);transition:transform .2s;display:flex;flex-direction:column}
+  #gcNav.on{transform:none}
+  #gcNav .hd{display:flex;align-items:center;justify-content:space-between;padding:16px;font-weight:800;border-bottom:1px solid #1e3a5f}
+  #gcNav .hd small{display:block;font-weight:400;color:#94a3b8;font-size:12px;margin-top:2px}
+  #gcNav .hd button{background:none;border:0;color:#cbd5e1;font-size:24px;cursor:pointer;line-height:1}
+  #gcList{padding:8px;overflow:auto}
+  #gcList button{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;color:#e2e8f0;padding:12px;
+    border-radius:10px;font:600 15px system-ui,sans-serif;cursor:pointer;text-align:left}
+  #gcList button:hover{background:#17304f}
+  #gcList button.on{background:#0b3d91;color:#fff}
+  #gcList .ico{font-size:20px;width:26px;text-align:center}
+  #gcList .dot{margin-left:auto;width:7px;height:7px;border-radius:50%;background:#22c55e}
+  #gcSombra{position:fixed;inset:0;z-index:25;background:rgba(0,0,0,.35);display:none}
+  #gcSombra.on{display:block}
+  #gcLoad{position:fixed;inset:0;z-index:15;display:none;align-items:center;justify-content:center;background:rgba(11,18,32,.55);color:#e2e8f0;font:15px system-ui,sans-serif;flex-direction:column;gap:12px}
+  #gcLoad.on{display:flex}
 </style>
 </head>
 <body>
 <div id="ld"><i></i>Abrindo…</div>
+<button id="gcBtn" type="button" title="Apps Gelo Cubo" hidden>☰</button>
+<div id="gcSombra"></div>
+<nav id="gcNav" aria-label="Apps Gelo Cubo"><div class="hd"><div>Apps Gelo Cubo<small id="gcNome"></small></div><button id="gcX" type="button" aria-label="Fechar">×</button></div><div id="gcList"></div></nav>
+<div id="gcLoad"><i></i><span>Abrindo…</span></div>
 <script>
 (function(){
   var APPS = {
@@ -24,6 +51,7 @@
     car: 'AKfycbwqnPyzN89UWByLMCtKFnkO-BYS7MjW9KtIXJgy3ndtWe7TwLVyOD2629FrWbF7xgMU',
     dem: 'AKfycby2E0NZ-u7VBmoRzCOKntVxwaS2tLViz3xce0yb-3All2_9S0B9Dx9lbfaX1-GLRKEcAQ'
   };
+  var SIS = { man: 'man', car: 'carregamento', dem: 'demandas' };
   var q = new URLSearchParams(location.search);
   var a = q.get('a') || 'man';
   if (a === 'mot') { a = 'car'; q.set('m', '1'); }
@@ -32,14 +60,71 @@
   if (q.has('c')) { q.set('ch', q.get('c')); q.delete('c'); }
   var qs = q.toString();
   var src = 'https://script.google.com/macros/s/' + id + '/exec' + (qs ? '?' + qs : '');
-  var f = document.createElement('iframe');
-  f.setAttribute('credentialless', '');
-  f.credentialless = true;
-  f.setAttribute('allow', 'camera; microphone; geolocation; clipboard-read; clipboard-write; fullscreen');
-  f.setAttribute('referrerpolicy', 'no-referrer');
-  f.onload = function(){ var l = document.getElementById('ld'); if (l) l.remove(); };
-  f.src = src;
-  document.body.appendChild(f);
+
+  function novoFrame(url, onload) {
+    var f = document.createElement('iframe');
+    f.className = 'app';
+    f.setAttribute('credentialless', '');
+    f.credentialless = true;
+    f.setAttribute('allow', 'camera; microphone; geolocation; clipboard-read; clipboard-write; fullscreen');
+    f.setAttribute('referrerpolicy', 'no-referrer');
+    if (onload) f.onload = onload;
+    f.src = url;
+    document.body.appendChild(f);
+    return f;
+  }
+
+  // ---- apps abertos (cada um continua carregado por trás; trocar é instantâneo) ----
+  var frames = {}, atual = q.has('m') ? 'motorista' : (SIS[a] || 'man');
+  frames[atual] = novoFrame(src, function(){ var l = document.getElementById('ld'); if (l) l.remove(); });
+  var apps = [], portal = null, nome = '', pend = {};
+  var $ = function(s){ return document.getElementById(s); };
+
+  function fechar(){ $('gcNav').classList.remove('on'); $('gcSombra').classList.remove('on'); }
+  function abrirMenu(){ $('gcNav').classList.add('on'); $('gcSombra').classList.add('on'); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function desenhar(){
+    var ok = apps.length > 1;
+    $('gcBtn').hidden = !ok;
+    if (!ok) { fechar(); return; }
+    $('gcNome').textContent = nome || '';
+    $('gcList').innerHTML = apps.map(function(x){
+      return '<button type="button" data-sis="' + esc(x.sis) + '" class="' + (x.sis === atual ? 'on' : '') + '"><span class="ico">' + esc(x.ico || '•') + '</span>' + esc(x.nome) + (frames[x.sis] && x.sis !== atual ? '<span class="dot" title="Aberto"></span>' : '') + '</button>';
+    }).join('');
+  }
+  function mostrar(sis){
+    Object.keys(frames).forEach(function(k){ frames[k].classList.toggle('off', k !== sis); });
+    atual = sis; $('gcLoad').classList.remove('on'); desenhar(); fechar();
+  }
+  function abrir(sis){
+    if (frames[sis]) return mostrar(sis);
+    if (!portal) { alert('Abra pelo Portal da Gelo Cubo.'); return; }
+    pend[sis] = 1; fechar(); $('gcLoad').classList.add('on');
+    portal.postMessage({ gc: 'ticket', sis: sis }, '*');
+    setTimeout(function(){ if (pend[sis]) { delete pend[sis]; $('gcLoad').classList.remove('on'); alert('Não foi possível abrir agora. Tente de novo.'); } }, 30000);
+  }
+
+  window.addEventListener('message', function(ev){
+    var host = ''; try { host = new URL(ev.origin).hostname; } catch (e) { return; }
+    if (!/\.googleusercontent\.com$/.test(host)) return;
+    var m = ev.data || {};
+    if (m.gc === 'apps') {
+      portal = ev.source; apps = Array.isArray(m.apps) ? m.apps : []; nome = m.nome || '';
+      if (!frames.man && atual === 'man') frames.man = frames[atual];
+      desenhar();
+    } else if (m.gc === 'open') {
+      portal = ev.source; abrir(m.sis);
+    } else if (m.gc === 'ticketRes') {
+      if (!pend[m.sis]) return; delete pend[m.sis];
+      if (m.url) { frames[m.sis] = novoFrame(m.url, function(){ if (atual === m.sis) $('gcLoad').classList.remove('on'); }); mostrar(m.sis); $('gcLoad').classList.add('on'); }
+      else { $('gcLoad').classList.remove('on'); alert(m.erro || 'Sem acesso a este app.'); }
+    }
+  });
+  $('gcBtn').onclick = abrirMenu;
+  $('gcX').onclick = fechar;
+  $('gcSombra').onclick = fechar;
+  $('gcList').onclick = function(ev){ var b = ev.target.closest('[data-sis]'); if (b) abrir(b.dataset.sis); };
+  document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape') fechar(); });
 })();
 </script>
 </body>
